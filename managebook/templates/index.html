@@ -5,14 +5,28 @@
     <title>Title</title>
 </head>
 <body>
-<h1>hello {{ user }} {{ digit }}  !!!</h1>
 
-{% for letter in user %}
-{% if letter == 'o' %}
-    <h3>{{ letter }}</h3>
-{% else %}
-    <h1>{{ letter }}</h1>
-{% endif %}
+{% for book in content %}
+    <h1>{{ book.title }}</h1>
+    <h5>{{ book.text }}</h5>
+    <h5>Rate: {{ book.cached_rate }}</h5>
+    {% for i in '0123456789'|make_list %}
+        <a href="{% url 'add_rate' rate=i book_id=book.id %}"><i>{{ i }}</i></a>
+    {% endfor %}
+    <h5>Date: {{ book.publish_date }}</h5>
+    <h5>Authors: {% for author in book.author.all %}
+        {{ author.username }}
+        {% endfor %}</h5>
+    <h5>Genres: {% for author in book.genre.all %}
+        {{ author.title }}
+        {% endfor %}</h5>
+    {% for c in book.comment.all %}
+        <h5>{{ c.text }}</h5>
+        <h5>Date: {{ c.date }}</h5>
+        <h5>Author: {{ c.user }}</h5>
+        <h5>Like: {{ c.cached_like }} </h5>
+    {% endfor %}
+<hr>
 {% endfor %}
 </body>
 </html>
