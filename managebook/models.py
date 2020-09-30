@@ -78,6 +78,12 @@ class CommentLike(models.Model):
         User, on_delete=models.CASCADE, related_name="comment_like")
 
     def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        self.comment.cached_like = self.comment.comment_like.count()
+        try:
+            super().save(*args, **kwargs)
+        except IntegrityError:
+            CommentLike.objects.get(
+                comment_id=self.comment.id, user_id=self.user.id).delete()
+            self.comment.cached_like -= 1
+        else:
+            self.comment.cached_like += 1
         self.comment.save()
