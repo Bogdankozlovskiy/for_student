@@ -1,13 +1,16 @@
 from django.contrib.auth import authenticate, login, logout
+from django.db import IntegrityError
 from django.db.models import Count, Q, CharField, Value
 from django.db.models.functions import Cast
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
+from pytils.translit import slugify
+from managebook.forms import BookForm
 from managebook.models import BookLike, Book, CommentLike, Comment
 from django.views import View
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib import messages
-
+from datetime import datetime
 
 class BookView(View):
     def get(self, request):
@@ -73,3 +76,24 @@ class LogoutView(View):
     def get(self, request):
         logout(request)
         return redirect("hello")
+
+
+class AddNewBook(View):
+    def get(self, request):
+        form = BookForm()
+        return render(request, "create_book.html", {"form": form})
+
+    def post(self, request):
+        book = BookForm(data=request.POST)
+        if book.is_valid():
+            nb = book.save(commit=False)
+            nb.slug = slugify(nb.title)
+            try:
+                nb.save()
+            except IntegrityError:
+                nb.slug += datetime.now().strftime("%Y:%m:%d:%H:%M:%S:%f")
+                nb.save()
+            nb.author.add(request.user)
+            book.save_m2m()
+            return redirect("hello")
+        return redirect("add_book")
