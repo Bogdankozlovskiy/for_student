@@ -38,6 +38,9 @@ class Book(models.Model):
 
 
 class Comment(models.Model):
+    class Meta:
+        db_table = "comment_table"
+
     text = models.TextField(verbose_name="текст")
     date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="пользователь")
