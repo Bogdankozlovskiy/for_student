@@ -1,7 +1,8 @@
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db import IntegrityError
-from django.db.models import Count, Q, CharField, Value
+from django.db.models import Count, Q, CharField, Value, OuterRef, Subquery, Exists, Prefetch
 from django.db.models.functions import Cast
 from django.shortcuts import render, redirect
 from django.views.decorators.cache import cache_page
@@ -18,31 +19,25 @@ from django.utils.decorators import method_decorator
 class BookView(View):
     # @method_decorator(cache_page(5))
     def get(self, request):
-        if request.user.username in cache:
-            result = cache.get(request.user.username)
-            response = {"content": result, "form": CommentForm()}
-            return render(request, "index.html", response)
         response = {"form": CommentForm()}
         if request.user.is_authenticated:
-            quary = Q(book_like__user_id=request.user.id)
-            sub_quary = Book.objects.filter(quary). \
-                annotate(user_rate=Cast('book_like__rate', CharField())). \
-                prefetch_related("author", "genre", "comment", "comment__user")
-            result = Book.objects.filter(~quary).annotate(user_rate=Value(-1, CharField())). \
-                prefetch_related("author", "genre", "comment", "comment__user"). \
-                union(sub_quary)
+            sub_query_1 = BookLike.objects.filter(user=request.user, book=OuterRef('pk')).values('rate')
+            sub_query_2 = Exists(User.objects.filter(id=request.user.id, book=OuterRef('pk')))
+            sub_query_3 = Exists(User.objects.filter(id=request.user.id, comment=OuterRef('pk')))
+            comment = Comment.objects.annotate(is_owner=sub_query_3).\
+                select_related('user').prefetch_related('like')
+            comment_prefetch = Prefetch('comment', comment)
+            result = Book.objects.annotate(user_rate=Cast(sub_query_1, CharField()), is_owner=sub_query_2)\
+                .prefetch_related(comment_prefetch, "author", "genre")
         else:
-            result = Book.objects. \
-                prefetch_related("author", "genre", "comment", "comment__user").all()
+            result = Book.objects.prefetch_related("author", "genre", "comment", "comment__user").all()
         response['content'] = result
-        cache.set(request.user.username, result, 10)
         return render(request, "index.html", response)
 
 
 class AddRateBook(View):
     def get(self, request, rate, book_id):
         if request.user.is_authenticated:
-            cache.delete(request.user.username)
             BookLike.objects. \
                 create(book_id=book_id, rate=rate, user_id=request.user.id)
         return redirect("hello")
@@ -147,6 +142,33 @@ class AddComment(View):
             comment.book_id = book_id
             comment.save()
         return redirect("hello")
+
+
+class DeleteComment(View):
+    def get(self, request, comment_id):
+        if request.user.is_authenticated:
+            try:
+                Comment.objects.get(id=comment_id, user=request.user).delete()
+            except Comment.DoesNotExist:
+                pass
+        return redirect('hello')
+
+
+class UpdateComment(View):
+    def get(self, request, comment_id):
+        if request.user.is_authenticated:
+            comment = Comment.objects.get(id=comment_id)
+            if comment.user == request.user:
+                cf = CommentForm(instance=comment)
+                return render(request, 'update_comment.html', {'form': cf, 'id': comment.id})
+        return redirect('hello')
+
+    def post(self, request, comment_id):
+        comment = Comment.objects.get(id=comment_id)
+        cf = CommentForm(instance=comment, data=request.POST)
+        if cf.is_valid():
+            cf.save()
+        return redirect('hello')
 
 # CRUD      create +,  read +,  update+,  delete+
 # CRUD      Comment HW

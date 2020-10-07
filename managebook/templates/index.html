@@ -2,11 +2,15 @@
 
 
 {% block index %}
+{% if user.is_authenticated %}
 <a href="{% url 'add_book' %}">Add a New Book</a>
+{% endif %}
 {% for book in content %}
     <h1>{{ book.title }}</h1>
+{% if book.is_owner %}
 <p><a href="{% url 'delete_book' book_id=book.id %}">delete this book</a></p>
 <p><a href="{% url 'update_book' book_slug=book.slug %}">update this book</a></p>
+{% endif %}
     <h5>{{ book.text }}</h5>
     <h5>Rate: {{ book.cached_rate }}</h5>
     {% for i in '0123456789'|make_list %}
@@ -29,16 +33,27 @@
         <h5>{{ c.text }}</h5>
         <h5>Date: {{ c.date }}</h5>
         <h5>Author: {{ c.user }}</h5>
-        <a href="{% url 'add_like2comment' comment_id=c.id %}">
-            <h5>Like: {{ c.cached_like }} </h5>
-        </a>
+        <div>
+            <a href="{% url 'add_like2comment' comment_id=c.id %}">Like: {{ c.cached_like }} </a>
+            <th>
+                {% for u in c.like.all %}
+                <span>{{ u }}</span>
+                {% endfor %}
+            </th>
+        </div>
+        {% if c.is_owner %}
+        <a href="{% url 'delete_comment' comment_id=c.id %}">delete comment</a>
+        <a href="{% url 'update_comment' comment_id=c.id %}">update comment</a>
+        {% endif %}
     {% endfor %}
     <hr>
+{% if user.is_authenticated %}
 <form action="{% url 'add_comment' book_id=book.id %}" method="post">
     {% csrf_token %}
     {{ form }}
     <button type="submit">OK</button>
 </form>
+{% endif %}
     {% endfor %}
 
 
