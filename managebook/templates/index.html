@@ -2,6 +2,10 @@
 
 
 {% block index %}
+{% for p in count_page %}
+<a href="{% url 'hello_with_num_page' num_page=p %}"> page number {{ p }}</a>
+{% endfor %}<br>
+
 {% if user.is_authenticated %}
 <a href="{% url 'add_book' %}">Add a New Book</a>
 {% endif %}
@@ -22,6 +26,11 @@
             {% endif %}
         </a>
     {% endfor %}
+    <th>
+    {% for u in book.rate.all %}
+        <span>{{ u.username }}</span>
+    {% endfor %}
+    </th>
     <h5>Date: {{ book.publish_date }}</h5>
     <h5>Authors: {% for author in book.author.all %}
         {{ author.username }}
@@ -34,10 +43,12 @@
         <h5>Date: {{ c.date }}</h5>
         <h5>Author: {{ c.user }}</h5>
         <div>
-            <a href="{% url 'add_like2comment' comment_id=c.id %}">Like: {{ c.cached_like }} </a>
+            <span class="comment_like fa {% if c.is_liked %}fa-star {% endif %}" id="cl-{{ c.id }}">
+                Like: {{ c.cached_like }}
+            </span>
             <th>
                 {% for u in c.like.all %}
-                <span>{{ u }}</span>
+                <span class="col">{{ u.username }}</span>
                 {% endfor %}
             </th>
         </div>

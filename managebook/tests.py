@@ -112,3 +112,65 @@ class TestViews(TestCase):
         self.assertEqual(book.title, data['title'])
         self.assertEqual(book.text, data['text'])
         self.assertEqual(book.genre.first().title, g2.title)
+
+    def test_register(self):
+        self.client.logout()
+        url = reverse('register')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'register.html')
+        data = {
+            'username': "BogdanUser",
+            'password1': 'useruser',
+            'password2': 'useruser'
+        }
+        response = self.client.post(url, data=data)
+        self.assertEqual(response.status_code, 302)
+        user = User.objects.get(id=2)
+        self.assertEqual(user.username, data['username'])
+        response = self.client.post(url, data=data)
+        self.assertEqual(response.status_code, 302)
+
+    def test_login(self):
+        self.client.logout()
+        url = reverse('login')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'login.html')
+        data = {
+            'username': "Test Name",
+            'password': 'test pwd',
+        }
+        response = self.client.post(url, data=data)
+        self.assertEqual(response.status_code, 302)
+
+    def test_logout(self):
+        url = reverse('logout')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_add_book(self):
+        url = reverse('add_book')
+        g1 = Genre.objects.create(title="genre 1")
+        g2 = Genre.objects.create(title="genre 2")
+        data = {
+            'title': 'update new title',
+            'text': 'update new text',
+            'genre': ['1', '2']
+        }
+        response = self.client.post(url, data=data)
+        self.assertEqual(response.status_code, 302)
+        book = Book.objects.first()
+        self.assertEqual(book.title, data['title'])
+        self.assertEqual(book.text, data['text'])
+        arr = [i.title for i in book.genre.all()]
+        self.assertEqual(arr, [g1.title, g2.title])
+
+    def test_delete_comment(self):
+        book = Book.objects.create(text="text", slug="slug")
+        comment = Comment.objects.create(text="text of comment", user=self.user, book=book)
+        url = reverse('delete_comment', args=[comment.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Comment.objects.count(), 0)
+

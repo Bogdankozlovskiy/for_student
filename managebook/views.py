@@ -4,34 +4,39 @@ from django.core.cache import cache
 from django.db import IntegrityError
 from django.db.models import Count, Q, CharField, Value, OuterRef, Subquery, Exists, Prefetch
 from django.db.models.functions import Cast
+from django.http import JsonResponse
 from django.shortcuts import render, redirect
-from django.views.decorators.cache import cache_page
+# from django.views.decorators.cache import cache_page
 from pytils.translit import slugify
 from managebook.forms import BookForm, CommentForm, CustomUserCreateForm
 from managebook.models import BookLike, Book, CommentLike, Comment
 from django.views import View
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from datetime import datetime
-from django.utils.decorators import method_decorator
+# from django.utils.decorators import method_decorator
+from django.core.paginator import Paginator
 
 
 class BookView(View):
     # @method_decorator(cache_page(5))
-    def get(self, request):
+    def get(self, request, num_page=1):
         response = {"form": CommentForm()}
         if request.user.is_authenticated:
             sub_query_1 = BookLike.objects.filter(user=request.user, book=OuterRef('pk')).values('rate')
             sub_query_2 = Exists(User.objects.filter(id=request.user.id, book=OuterRef('pk')))
             sub_query_3 = Exists(User.objects.filter(id=request.user.id, comment=OuterRef('pk')))
-            comment = Comment.objects.annotate(is_owner=sub_query_3).\
+            sub_query_4 = Exists(User.objects.filter(id=request.user.id, like=OuterRef('pk')))
+            comment = Comment.objects.annotate(is_owner=sub_query_3, is_liked=sub_query_4). \
                 select_related('user').prefetch_related('like')
             comment_prefetch = Prefetch('comment', comment)
-            result = Book.objects.annotate(user_rate=Cast(sub_query_1, CharField()), is_owner=sub_query_2)\
-                .prefetch_related(comment_prefetch, "author", "genre")
+            result = Book.objects.annotate(user_rate=Cast(sub_query_1, CharField()), is_owner=sub_query_2) \
+                .prefetch_related(comment_prefetch, "author", "genre", "rate")
         else:
             result = Book.objects.prefetch_related("author", "genre", "comment", "comment__user").all()
-        response['content'] = result
+        pag = Paginator(result, 5)
+        response['content'] = pag.page(num_page)
+        response['count_page'] = list(range(1, pag.num_pages + 1))
         return render(request, "index.html", response)
 
 
@@ -59,9 +64,8 @@ class RegisterView(View):
     def post(self, request):
         form = CustomUserCreateForm(data=request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect("hello")
+            form.save()
+            return redirect("login")
         messages.error(request, "This Username already exist")
         return redirect("register")
 
@@ -169,6 +173,22 @@ class UpdateComment(View):
         if cf.is_valid():
             cf.save()
         return redirect('hello')
+
+
+class AddLikeAjax(View):
+    def post(self, request):
+        if request.user.is_authenticated:
+            cl_id = request.POST['cl_id'][3:]
+            flag = CommentLike(user=request.user, comment_id=cl_id).save()
+            comment = Comment.objects.get(id=cl_id)
+            return JsonResponse({
+                "ok": True,
+                'count_like': comment.cached_like,
+                'flag': flag,
+                'user': request.user.username
+            })
+        return JsonResponse({'ok': False})
+
 
 # CRUD      create +,  read +,  update+,  delete+
 # CRUD      Comment HW
