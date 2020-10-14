@@ -19,5 +19,8 @@ urlpatterns = [
     path("update_book/<str:book_slug>", views.UpdateBook.as_view(), name="update_book"),
     path("delete_comment/<int:comment_id>/", views.DeleteComment.as_view(), name="delete_comment"),  # HW
     path("update_comment/<int:comment_id>/", views.UpdateComment.as_view(), name="update_comment"),  # HW
-    path("add_like_ajax/", views.AddLikeAjax.as_view())
+    path("add_like_ajax/", views.AddLikeAjax.as_view()),
+    path("add_book_rate_ajax/", views.AddBookRateAjax.as_view()),
+    path("delete_comment_ajax/<int:comment_id>/", views.DeleteCommentAjax.as_view()),
+    path("add_new_book_ajax/", views.AddNewBookAjax.as_view()),
 ]

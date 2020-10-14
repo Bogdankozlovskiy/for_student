@@ -67,9 +67,12 @@ class BookLike(models.Model):
             br = BookLike.objects.get(user=self.user, book=self.book)
             br.rate = self.rate
             br.save()
+            flag = False
         else:
             self.book.cached_rate = self.book.book_like.aggregate(Avg('rate'))['rate__avg']
             self.book.save()
+            flag = True
+        return flag
 
 
 class CommentLike(models.Model):
